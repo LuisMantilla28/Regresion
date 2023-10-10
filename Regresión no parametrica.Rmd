@@ -1,0 +1,108 @@
+---
+title: "Regresión no parametrica"
+author: "Luis Mantilla"
+date: "2023-10-10"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Regresión no paramétrica
+
+```{r, include = FALSE}
+library(readxl)
+anexo_proyecciones_poblacion_bogota_desagreacion_loc_2018_2035_UPZ_2018_2024 <- read_excel("anexo-proyecciones-poblacion-bogota-desagreacion-loc-2018-2035-UPZ-2018-2024.xlsx")
+
+dim(anexo_proyecciones_poblacion_bogota_desagreacion_loc_2018_2035_UPZ_2018_2024)
+
+n = 1086
+
+base_bogota = data.frame(anexo_proyecciones_poblacion_bogota_desagreacion_loc_2018_2035_UPZ_2018_2024[6:n,])
+```
+
+En este estudio se realizará el modelado de manera no paramétrica, y se buscará modelar los datos faltantes en una base de datos. Ene este caso la base de datos se llama "base_bogota" nos servirá para modelar la población de Bogotá por semana, sin embargo la base de datos nos da información anual, es por esto que es útil hacer un modelo no parametrico. Primero veamos las dimenciones de nuestra base de datos
+
+```{r}
+dim(base_bogota)
+```
+
+Mirando algunos datos:
+
+```{r}
+head(base_bogota)
+```
+
+Tomemos solo las culumnas que nos interesa estudiar, en este caso es el tipo de centro poblacional, el año y la población:
+
+```{r}
+proyeccion_bog = data.frame(base_bogota$...3, 
+
+                            base_bogota$...4, 
+
+                            base_bogota$...310)
+colnames(proyeccion_bog) = c("centro", "año", "poblacion")
+proyeccion_bog
+```
+
+Dado que queremos la población del año, debemos sumar las poblaciones de cada uno de los distintos centros poblacionales de Bogotá por cada año:
+
+```{r}
+proyeccion_bog1 = NULL
+
+#tomemos todos lo valores
+for (i in 1:18) {
+
+  proyeccion_bog1[i] = sum(as.numeric(proyeccion_bog[(which(proyeccion_bog[,2] == (2017+i) &  proyeccion_bog[, 1] == "Total")), 3]))
+
+}
+
+proyeccion_bog1
+```
+
+Ahora debemos dejar los espacios que queremos estimar con el modelo como "NA", de la siguiente manera
+
+```{r}
+#realicemos una imputacion de datos por semana
+library(npregfast)
+poblacion_NA=c(rep(NA,51),proyeccion_bog1[1] , #2018
+               rep(NA,51),proyeccion_bog1[2] , #2019
+               rep(NA,52),proyeccion_bog1[3] , #2020
+               rep(NA,51),proyeccion_bog1[4] ,#2021
+               rep(NA,51),proyeccion_bog1[5] ,#2022
+               rep(NA,51),proyeccion_bog1[6] ,#2023
+               rep(NA,51),proyeccion_bog1[7] #2024
+               )
+plot(poblacion_NA, pch=20)
+```
+
+Ahora aplicando un modelo no paramétrico tipo Kernel y graficando la aproximación por el modelo, su primera y segunda derivada.
+
+```{r}
+datos_finales = data.frame((2018:2024), proyeccion_bog1[1:7])
+
+formula = frfast(datos_finales[, 2] ~ datos_finales[, 1], 
+
+                 model = "np", smooth = "kernel", 
+
+                 kbin = 314, p = 3)
+plot(formula)
+```
+
+Veamos la gráfica modelada:
+
+```{r}
+estimacion_np = data.frame(formula$p)
+fechas <- seq(as.Date("2018-12-29"), as.Date("2024-12-28"), by = "week")
+
+tabla <- data.frame(fechas, poblacion_NA[52:365], estimacion_np[, 1])
+
+
+
+plot(tabla[,1], tabla[,2], lwd = 2, col = "blue", pch = 20)
+
+lines(tabla[,1], tabla[,3], pch = 20)
+```
