@@ -1,2 +1,2 @@
 # Regresion
-En este repositorio contine ejemplos de  modelos de regresión 
+En este repositorio contiene ejemplos de  modelos de regresión 
