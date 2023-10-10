@@ -1,0 +1,129 @@
+---
+title: "Regresión Lineal"
+author: "Luis Mantilla"
+date: "2023-10-06"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Regresión Lineal
+
+Se tiene la base de datos de nacimientos del año 2016 llamada "asriosgu_Base.csv" (La cual llamaremos a lo largo del trabajo como "datos"), tomada de la pagina del DANE, y se quiere crear un modelo lineal que me pronostique el peso del infante. Para esto primero debemos ver que variables tienen correlación con el peso del recién nacido:
+
+```{r Datos, include = FALSE}
+library(readr)
+datos <- read_delim("asriosgu_Base.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+datos <-data.frame(datos)
+```
+
+Veamos que tipo de columnas tiene la base de datos:
+
+```{r Columnas}
+names(datos)
+```
+
+Veamos si la Talla, el tiempo de gestación, Edad de la madre o número de embarazos, afectan al peso del recién nacido. Para este propósito debemos realizar para cada una de las posibles variables un test de correlación con respecto al peso, en este caso implementaremos el método de Pearson.
+
+-   Test de correlación del peso y la Talla
+
+    ```{r Correlacion_peso_talla}
+    cor.test(datos$Peso, datos$Talla,method= "pearson" )
+    ```
+
+    Observemos que el $p$ valor es menor al 5%, entonces no rechazamos el hecho de que existe una correlación del peso del infante con la talla, por otro lado la correlación de las dos variables es del 0.75, lo cual nos muestra una correlación sustancial entre variables. Además notemos que gráficamente si parece tener una tendencia los datos.
+
+    ```{r, echo=FALSE}
+    plot(datos$Peso, datos$Talla, pch=20, col="blue", xlab="Peso", ylab="Talla")
+    ```
+
+-   Test de correlación del peso y el tiempo de gestación
+
+    ```{r Correlacion_peso_Gestacion}
+    cor.test(datos$Peso, datos$Tiempo.de.Gestación,method= "pearson" )
+    ```
+
+    Como el valor $p$ es menor al 5% entonces decimos tiene una buena correlación de manera similar al anterior test. Además veamos que la gráfica de los datos parecen seguir una tendencia.
+
+    ```{r, echo=FALSE}
+    plot(datos$Peso, datos$Tiempo.de.Gestación, pch=20, col="blue", xlab="Peso", ylab="Tiempo de gestación")
+    ```
+
+-   Test de correlación del peso y la edad de la madre
+
+    ```{r Correlacion_peso_Edad_Madre}
+    cor.test(datos$Peso, datos$Edad.de.la.Madre,method= "pearson" )
+    ```
+
+    Veamos que el valor $p$ es menor al 5%, entonces no rechazamos la hipótesis de que existe correlación entre las variables, sin embargo veamos que la correlación entre variables es insignificante y si vemos la gráfica de los datos, no vemos alguna tendencia.
+
+    ```{r, echo=FALSE}
+    plot(datos$Peso, datos$Edad.de.la.Madre, pch=20, col="blue", xlab="Peso", ylab="Edad de la madre")
+    ```
+
+-   Test de correlación del peso y el número de embarazos
+
+    ```{r Correlacion_peso_Numero_embarazos}
+    cor.test(datos$Peso, datos$Número.de.Embarazos,method= "pearson" )
+    ```
+
+    Veamos que le valor $p$ es mayor al 5%, entonces rechazamos el hecho de que existe correlación entre variables, más aun su coeficiente de correlación es muy cercano a cero, lo cual implica que definitivamente no deberíamos agregar esta variable a la regresión lineal. Además de manera similar al anterior indice no vemos ninguna relación entre los datos de manera gráfica.
+
+    ```{r, echo=FALSE}
+    plot(datos$Peso, datos$Número.de.Embarazos, pch=20, col="blue")
+    ```
+
+Dados los anteriores tests de pearson entre variables, entonces deberíamos agregar las variables Talla, tiempo de gestación y Edad de la madre (Agregamos esta ultima variable, ya que la prueba de Pearson nos mostró correlación) al modelo lineal, es decir, quedaría de la forma
+
+$$
+Peso = \beta_0+ \beta_T\; \text{Talla} + \beta_G \;\text{Tiempo de Gestación}+ \beta_M\; \text{Edad de la madre}  + \varepsilon
+$$
+
+Donde $\beta_0, \beta_T,\beta_G \text{ y } \beta_M$ son los pesos de la regresión lineal y $\varepsilon$ el error. El siguiente código es la regresión lineal múltiple en $R$.
+
+```{r Regresión}
+regresion1= lm((datos$Peso ~ datos$Talla + datos$Tiempo.de.Gestación+ datos$Edad.de.la.Madre))
+summary(regresion1)
+```
+
+Veamos que tenemos los pesos son $\beta_0=-4907.84$ , $\beta_T=96.32,\beta_G= 81.44 \text{ y } \beta_M= 4.88$, más aun veamos que R-squared el cual es 0.6318 los cual es un indicador de que el modelo predice de una buena manera. Sin embargo tratemos de hacer la regresión sin la variable "Edad de la madre".
+
+```{r}
+regresion2= lm(Peso ~ Talla + Tiempo.de.Gestación, data=datos)
+summary(regresion2)
+```
+
+Notemos que $R^2=0.62$ lo cual comparándolo con el 0.63 de la anterior regresión, podríamos considerar quitar la variable "Edad de la madre", pues no cambia mucho el ajuste de la regresión lineal. La siguiente gráfica nos muestra con la linea roja que la media de los errores es cercana a cero.
+
+```{r, echo=FALSE}
+plot(regresion2, 1, col="darkblue", sub="")
+```
+
+De la siguiente gráfica vemos que la mayoría de los Residuales (errores) se acerca a la recta normal, a excepción de algunos (aunque esto ultimo es común en la practica) entonces podemos asumir normalidad en los errores (esto es un fundamento teórico, pues teóricamente $\varepsilon \sim N(0,\sigma^2)$ ).
+
+```{r, echo=FALSE}
+plot(regresion2, 2, col="green", sub="")
+```
+
+Ahora teniendo el modelo, podemos predecir el peso del infante según su talla y el tiempo de gestación, supongamos que la talla sea 40 cm y 38 semanas de gestación
+
+```{r Predicción}
+nuevos=data.frame(c(40),c(38))
+colnames(nuevos)= c("Talla", "Tiempo.de.Gestación" )
+
+predict(regresion2,newdata = nuevos)
+```
+
+Según el modelo el infante debería pesar 2157 kilos aproximadamente. Sin embargo este tipo de predicciones es poco concluyente, es por esto que se recomienda realizar un intervalo de confianza para el valor dado, de la siguiente manera se muestra el intervalo de confianza para nuestro caso con un nivel de confianza del 95%.
+
+```{r Prediccion_intervalo}
+
+predict(regresion2,newdata = nuevos, interval = "confidence")
+```
+
+De lo anterior concluimos que el infante con talla 40 cm y 38 semanas de gestación, tendrá un peso entre 2088 Kg y 2226 Kg con una confianza del 95%.
